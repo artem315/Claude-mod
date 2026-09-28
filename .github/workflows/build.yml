@@ -18,25 +18,44 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      # Распаковываем ZIP
       - name: Распаковать мод
         run: |
-          mkdir mod
-          unzip archive.zip -d mod
+          mkdir -p mod
+          unzip -o archive.zip -d mod
+          echo "=== Содержимое архива ==="
+          find mod -maxdepth 5 -type f
 
-      # Делаем gradlew запускаемым
-      - name: Подготовить Gradle
-        working-directory: ./mod
-        run: chmod +x gradlew
+      - name: Найти Gradle проект
+        run: |
+          GRADLEW=$(find "$GITHUB_WORKSPACE/mod" -type f -name gradlew | head -n 1)
 
-      # Собираем
+          if [ -z "$GRADLEW" ]; then
+            echo "ОШИБКА: gradlew не найден внутри archive.zip"
+            exit 1
+          fi
+
+          PROJECT_DIR=$(dirname "$GRADLEW")
+
+          echo "Найден gradlew: $GRADLEW"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          chmod +x "$GRADLEW"
+
       - name: Собрать Fabric 26.2
-        working-directory: ./mod
-        run: ./gradlew build --stacktrace
+        run: |
+          cd "$PROJECT_DIR"
+          ./gradlew build --stacktrace
 
-      # Забираем готовый JAR
+      - name: Найти готовый JAR
+        run: |
+          echo "=== Готовые JAR ==="
+          find "$PROJECT_DIR/build/libs" -type f -name "*.jar"
+
       - name: Загрузить готовый JAR
         uses: actions/upload-artifact@v4
         with:
           name: Fabric-26.2-Mod
-          path: mod/build/libs/*.jar
+          path: |
+            ${{ env.PROJECT_DIR }}/build/libs/*.jar
+            !${{ env.PROJECT_DIR }}/build/libs/*-sources.jar
+          if-no-files-found: error
