@@ -1,0 +1,42 @@
+name: Build Fabric 26.2 Mod
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Скачать репозиторий
+        uses: actions/checkout@v4
+
+      - name: Установить Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      # Распаковываем ZIP
+      - name: Распаковать мод
+        run: |
+          mkdir mod
+          unzip archive.zip -d mod
+
+      # Делаем gradlew запускаемым
+      - name: Подготовить Gradle
+        working-directory: ./mod
+        run: chmod +x gradlew
+
+      # Собираем
+      - name: Собрать Fabric 26.2
+        working-directory: ./mod
+        run: ./gradlew build --stacktrace
+
+      # Забираем готовый JAR
+      - name: Загрузить готовый JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: Fabric-26.2-Mod
+          path: mod/build/libs/*.jar
